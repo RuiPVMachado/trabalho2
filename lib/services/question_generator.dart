@@ -53,14 +53,23 @@ class QuestionGenerator {
   Question _generateLevel2Question() {
     // Gera um IP aleatório
     final ip = _generateRandomIP();
-    final subnetMask = '255.255.255.192'; // /26
+    // Gera uma máscara de sub-rede aleatória entre /25 e /28
+    final maskBits = _random.nextInt(4) + 25; // 25, 26, 27 ou 28
+    final subnetMask = _calculateSubnetMask(maskBits);
+    final numSubnets =
+        pow(2, maskBits - 24).toInt(); // Número de sub-redes possíveis
 
     String question =
-        'Quantas sub-redes podem ser criadas com a máscara $subnetMask?';
-    String correctAnswer = '4';
+        'Quantas sub-redes podem ser criadas com a máscara $subnetMask para a rede $ip?';
+    String correctAnswer = numSubnets.toString();
 
     // Gera opções incorretas
-    final options = ['2', '6', '8', '4'];
+    final options = [
+      (numSubnets ~/ 2).toString(),
+      (numSubnets * 2).toString(),
+      (numSubnets + 2).toString(),
+      correctAnswer
+    ];
     options.shuffle();
 
     return Question(
@@ -74,14 +83,22 @@ class QuestionGenerator {
   Question _generateLevel3Question() {
     // Gera um IP aleatório
     final ip = _generateRandomIP();
-    final supernetMask = '255.255.248.0'; // /21
+    // Gera uma máscara de superrede aleatória entre /16 e /20
+    final maskBits = _random.nextInt(5) + 16; // 16, 17, 18, 19 ou 20
+    final supernetMask = _calculateSubnetMask(maskBits);
+    final numHosts = pow(2, 32 - maskBits).toInt(); // Número de hosts possíveis
 
     String question =
-        'Quantos endereços IP podem ser endereçados com a máscara $supernetMask?';
-    String correctAnswer = '2048';
+        'Quantos endereços IP podem ser endereçados com a máscara $supernetMask para a rede $ip?';
+    String correctAnswer = numHosts.toString();
 
     // Gera opções incorretas
-    final options = ['1024', '4096', '512', '2048'];
+    final options = [
+      (numHosts ~/ 2).toString(),
+      (numHosts * 2).toString(),
+      (numHosts ~/ 4).toString(),
+      correctAnswer
+    ];
     options.shuffle();
 
     return Question(
@@ -139,5 +156,12 @@ class QuestionGenerator {
     }
 
     return options;
+  }
+
+  String _calculateSubnetMask(int bits) {
+    if (bits < 0 || bits > 32) throw Exception('Invalid mask bits');
+
+    final fullMask = ('1' * bits).padRight(32, '0');
+    return _binaryToIP(fullMask);
   }
 }
