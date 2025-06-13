@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,53 +23,40 @@ class DatabaseService {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, "ipv4_game.db");
 
-    // Verifica se o banco de dados já existe
-    bool exists = await databaseExists(path);
-
-    if (!exists) {
-      // Copia da pasta assets
-      try {
-        ByteData data =
-            await rootBundle.load(join("assets", "database", "ipv4_game.db"));
-        List<int> bytes =
-            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-        await File(path).writeAsBytes(bytes, flush: true);
-      } catch (e) {
-        print("Error copying database: $e");
-      }
-    }
-
-    // Abre o banco de dados
+    // Abre ou cria o banco de dados com configurações específicas
     return await openDatabase(
       path,
       version: 1,
+      onCreate: _onCreate,
+      singleInstance: true, // Garante uma única instância do banco
+      readOnly: false, // Permite escrita
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Tabela para o score atual
+    // Tabela para o score atual - usando AUTOINCREMENT explicitamente
     await db.execute('''
-      CREATE TABLE current_score(
+      CREATE TABLE IF NOT EXISTS current_score(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        value INTEGER NOT NULL,
+        value INTEGER NOT NULL DEFAULT 0,
         timestamp TEXT NOT NULL
       )
     ''');
 
-    // Tabela para o ranking (top 5)
+    // Tabela para o ranking - usando AUTOINCREMENT explicitamente
     await db.execute('''
-      CREATE TABLE ranking(
+      CREATE TABLE IF NOT EXISTS ranking(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        value INTEGER NOT NULL,
+        value INTEGER NOT NULL DEFAULT 0,
         timestamp TEXT NOT NULL
       )
     ''');
 
-    // Inicializa o score atual com 0
-    await db.insert('current_score', {
-      'value': 0,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
+    // Inicializa o score atual com 0 - usando INSERT OR IGNORE
+    await db.execute('''
+      INSERT OR IGNORE INTO current_score (id, value, timestamp)
+      VALUES (1, 0, '${DateTime.now().toIso8601String()}')
+    ''');
   }
 
   // Atualiza o score atual
